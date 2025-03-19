@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Summarizer and Chat</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>News Summarizer and Chat</h1>
+        <div class="form-section">
+            <h2>Fetch News Summaries</h2>
+            <input type="text" id="sources" placeholder="Enter news sources (comma separated)">
+            <button onclick="fetchSummaries()">Get Summaries</button>
+        </div>
+        <div class="summaries-section">
+            <h2>News Summaries</h2>
+            <div id="summaries"></div>
+        </div>
+        <div class="chat-section">
+            <h2>Chat with AI about the News</h2>
+            <textarea id="article" placeholder="Paste news article here"></textarea>
+            <input type="text" id="question" placeholder="Ask a question about the article">
+            <button onclick="chatWithAI()">Chat</button>
+            <div id="chat-response"></div>
+        </div>
+    </div>
+    <script src="scripts.js"></script>
+</body>
+</html>
