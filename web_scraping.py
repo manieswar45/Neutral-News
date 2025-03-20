@@ -1,6 +1,8 @@
 import requests
 import json
 from chat_processor import chat_with_openai
+from chat_processor import revised_article
+
 url = ('https://newsapi.org/v2/top-headlines?'
        'country=us&'
        'apiKey=4af7d24c8b3f4cf58892f8ebe4a6b99f')
@@ -16,7 +18,7 @@ if response.status_code == 200:
         print(f"Total number of articles: {len(articles['articles'])}")
     
     if 'articles' in articles and len(articles['articles']) > 1:
-        article_1 = articles['articles'][10]
+        article_1 = articles['articles'][11]
         
         art = {
             'title': article_1.get('title', ''),
@@ -27,7 +29,7 @@ if response.status_code == 200:
         
         arty = " ".join(filter(None, art.values()))
         
-        neutral_news = chat_with_openai(arty)
+        neutral_news = revised_article(arty)
         print(neutral_news)
     else:
         print("No sufficient articles found.")

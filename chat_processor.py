@@ -1,8 +1,9 @@
-import google.generativeai as genai 
+import google as genai
+from google.genai import Client
 import os
 
 
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+client = Client(api_key="AIzaSyDKjYtcoy-q0WOfreLCs0Uequg2Coe85h8")
 
 user_q = '“Given a news article, analyze its content and fact-check its key claims using reliable sources. ' \
 'Identify any misleading, exaggerated, or biased statements and provide a revised version of the article. ' \
@@ -12,21 +13,23 @@ user_q = '“Given a news article, analyze its content and fact-check its key cl
 
 
 
-def chat_with_ai(article_content: str) -> str:
+def revised_article(article_content: str) -> str:
+    """Chats with the AI using the provided article content.
 
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    Args:
+        article_content: The content of the article.
 
-# Provide system instructions as part of the prompt
-    response = model.generate_content(
-    [
-        {"role": "system", "parts": [{"text": "You are an AI assistant that provides helpful answers."}]},
-        {"role": "user", "parts": [{"text": user_q}]},
-        {"role": "user", "parts": [{"text": article_content}]}
-    ]
-    
+    Returns:
+        The AI's response.
+    """
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[
+            # Combine user query and article content into a single user message
+            {"role": "user", "parts": [{"text": f"{user_q} Here's the article: {article_content}"}]} 
+        ]
     )
-    print(response)
-    return response["choices"][0]["message"]["content"].strip()
+    return response.text.strip()
 
 
 import openai
