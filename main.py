@@ -1,78 +1,86 @@
+import os
+import sys
+from news_processor import NewsProcessor, OpenAIProcessor, GeminiProcessor, Article
+import logging
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from typing import List, Optional
+import uvicorn
 
-from news_fetcher import fetch_news
-from llm_processor import summarize_news
-#from chat_ai import chat_with_ai
-import openai
+# Load environment variables
+NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-app = FastAPI()
+# Initialize FastAPI app
+app = FastAPI(title="Neutral News API",
+             description="An API for fetching and processing news articles for neutrality",
+             version="1.0.0")
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-class NewsRequest(BaseModel):
-    sources: List[str]
+# Initialize processors
+ai_processors = [
+    OpenAIProcessor(OPENAI_API_KEY),
+    GeminiProcessor(GEMINI_API_KEY)
+]
 
-class NewsSummary(BaseModel):
-    source: str
-    summary: str
+# Initialize news processor
+news_processor = NewsProcessor(NEWS_API_KEY, ai_processors)
 
-class ChatRequest(BaseModel):
-    article: str
-    question: str
+class ArticleResponse(BaseModel):
+    title: str
+    content: str
+    author: str
+    description: str
+    url: str
+    published_at: str
+    source_name: str
+    category: str
+    fact_check_status: str
 
-class ChatResponse(BaseModel):
-    answer: str
-
-
-def chat_with_ai(article: str, question: str) -> str:
-    prompt = f"Here is a news article:\n\n{article}\n\nBased on this article, answer the following question:\n{question}"
-    
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "system", "content": "You are an AI assistant that answers questions based on provided news articles."},
-                  {"role": "user", "content": prompt}]
-    )
-    
-    return response["choices"][0]["message"]["content"]
-
-@app.post("/summarize_news", response_model=List[NewsSummary])
-async def summarize_news_endpoint(news_request: NewsRequest):
+@app.get("/news/", response_model=List[ArticleResponse])
+async def get_news(
+    country: str = "us",
+    category: Optional[str] = None,
+    page_size: int = 10
+):
     try:
-        news_articles = fetch_news(news_request.sources)
-        summaries = summarize_news(news_articles)
-        return summaries
+        articles = news_processor.fetch_news(country, category, page_size)
+        processed_articles = []
+        
+        for article in articles:
+            processed_article = news_processor.process_article(article)
+            processed_articles.append(processed_article)
+            
+        return processed_articles
     except Exception as e:
+        logging.error(f"Error processing news request: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/chat_with_news", response_model=ChatResponse)
-#async def chat_with_news_endpoint(chat_request: ChatRequest):
-#    try:
-#        answer = chat_with_ai(chat_request.article, chat_request.question)
-#        return {"answer": answer}
-#    except Exception as e:
-#        raise HTTPException(status_code=500, detail=str(e))
-
-def chat_with_ai(article: str, question: str) -> str:
-    prompt = f"Here is a news article:\n\n{article}\n\nBased on this article, answer the following question:\n{question}"
-    
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "system", "content": "You are an AI assistant that answers questions based on provided news articles."},
-                  {"role": "user", "content": prompt}]
-    )
-    
-    return response["choices"][0]["message"]["content"]
-
-@app.get("/", response_class=HTMLResponse)
-async def read_root():
-    with open("static/index.html") as f:
-        html_content = f.read()
-    return HTMLResponse(content=html_content, status_code=200)
+@app.get("/news/{article_url:path}", response_model=ArticleResponse)
+async def get_article(article_url: str):
+    try:
+        # Fetch single article by URL
+        articles = news_processor.fetch_news(page_size=100)
+        article = next((a for a in articles if a.url == article_url), None)
+        
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+            
+        processed_article = news_processor.process_article(article)
+        return processed_article
+    except Exception as e:
+        logging.error(f"Error processing article request: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
